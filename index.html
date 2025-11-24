@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ARC Raiders - Wyszukiwarka Itemów</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        color: white;
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 2.5em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .search-box {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 15px;
+        font-size: 18px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.3s;
+      }
+
+      input[type="text"]:focus {
+        border-color: #2a5298;
+      }
+
+      .stats {
+        text-align: center;
+        color: white;
+        margin-bottom: 20px;
+        font-size: 16px;
+      }
+
+      .table-container {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+      }
+
+      thead {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        font-size: 14px;
+      }
+
+      tbody tr {
+        transition: background-color 0.2s;
+      }
+
+      tbody tr:hover {
+        background-color: #f8f9fa;
+      }
+
+      tbody tr.hidden {
+        display: none;
+      }
+
+      .item-name {
+        font-weight: 600;
+        color: #1e3c72;
+      }
+
+      .recycles {
+        color: #28a745;
+        font-size: 13px;
+      }
+
+      .sell-price {
+        font-weight: 600;
+        color: #ff6b35;
+      }
+
+      .condition {
+        font-size: 13px;
+        color: #666;
+        line-height: 1.4;
+      }
+
+      .no-results {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        font-size: 18px;
+        display: none;
+      }
+
+      .no-results.show {
+        display: block;
+      }
+
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 1.8em;
+        }
+
+        th,
+        td {
+          padding: 10px 8px;
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎮 ARC Raiders - Baza Itemów</h1>
+
+      <div class="search-box">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="🔍 Wpisz nazwę itemu, materiał lub warunek..."
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="stats">
+        Wyświetlono: <span id="visibleCount">0</span> /
+        <span id="totalCount">0</span> itemów
+      </div>
+
+      <div class="table-container">
+        <table id="itemsTable">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Recykling</th>
+              <th>Cena</th>
+              <th>Warunki</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div id="noResults" class="no-results">
+          ❌ Nie znaleziono itemów pasujących do wyszukiwania
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const items = [
+        {
+          name: "Agave",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Agave Juice",
+          recycles: "-",
+          sell: "1800",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Air Freshener",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Alarm Clock",
+          recycles: "6x Plastic Parts, 1x Processor",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Apricot",
+          recycles: "3x Assorted Seeds",
+          sell: "640",
+          condition: "Safe to recycle after upgrading Scrappy to level 5.",
+        },
+        {
+          name: "ARC Coolant",
+          recycles: "16x Chemicals",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "ARC Flex Rubber",
+          recycles: "16x Rubber Parts",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "ARC Performance Steel",
+          recycles: "12x Metal parts",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "ARC Synthetic Resin",
+          recycles: "14x Plastic Parts",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "ARC Thermo Lining",
+          recycles: "16x Fabric",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Bastion Cell",
+          recycles: "2x ARC Alloy, 2x Advanced Mechanical Components",
+          sell: "5000",
+          condition:
+            "Safe to recycle after upgrading the Gear Bench to level 3.",
+        },
+        {
+          name: "Bicycle Pump",
+          recycles: "4x Canister, 10x Metal Parts",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Bloated Tuna Can",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Bombardier Cell",
+          recycles: "2x Advanced Mechanical Components, 2x ARC Alloys",
+          sell: "5000",
+          condition: "Safe to recycle after upgrading the Refiner to level 3.",
+        },
+        {
+          name: "Breathtaking Snow Globe",
+          recycles: "-",
+          sell: "7000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Broken Flashlight",
+          recycles: "2x Battery, 6x Metal Parts",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Broken Guidance System",
+          recycles: "4x Processor",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Broken Handheld Radio",
+          recycles: "3x Sensors, 2x Wires",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Broken Taser",
+          recycles: "2x Battery, 2x Wires",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Burned ARC Circuitry",
+          recycles: "2x ARC Alloy",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Camera Lens",
+          recycles: "8x Plastic Parts",
+          sell: "640",
+          condition: "Safe to recycle after completing the Movie Night quest.",
+        },
+        {
+          name: "Candle Holder",
+          recycles: "8x Metal Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Cat Bed",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to recycle after upgrading Scrappy to level 4.",
+        },
+        {
+          name: "Coffee Pot",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Coolant",
+          recycles: "5x Chemicals, 2x Oil",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Cooling Coil",
+          recycles: "6x Chemicals, 2x Steel Springs",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Cooling Fan",
+          recycles: "14x Plastic Parts, 4x Wires",
+          sell: "2000",
+          condition: "Safe to recycle after using them for the Project.",
+        },
+        {
+          name: "Cracked Bioscanner",
+          recycles: "3x Rubber Parts, 3x Battery",
+          sell: "1000",
+          condition:
+            "Safe to recycle after upgrading the Medical Lab to level 2.",
+        },
+        {
+          name: "Crumpled Plastic Bottle",
+          recycles: "4x Plastic Parts",
+          sell: "270",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Damaged ARC Motion Core",
+          recycles: "2x ARC Alloy",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Damaged Fireball Burner",
+          recycles: "1x ARC Alloy",
+          sell: "270",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Damaged Heat Sink",
+          recycles: "6x Metal Parts, 2x Wires",
+          sell: "1000",
+          condition:
+            "Safe to recycle after upgrading the Utility Station to level 2.",
+        },
+        {
+          name: "Damaged Hornet Driver",
+          recycles: "2x ARC Alloy",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Damaged Rocketeer Driver",
+          recycles: "3x ARC Alloy",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Dartboard",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Deflated Football",
+          recycles: "9x Rubber Parts, 9x Fabric",
+          sell: "1000",
+          condition: "Safe to recycle after completing the League quest.",
+        },
+        {
+          name: "Degraded ARC Rubber",
+          recycles: "11x Rubber Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Diving Goggles",
+          recycles: "12x Rubber Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Dog Collar",
+          recycles: "8x Fabric, 1x Metal Parts",
+          sell: "640",
+          condition: "Safe to recycle after upgrading Scrappy to level 2.",
+        },
+        {
+          name: "Dried-Out ARC Resin",
+          recycles: "9x Plastic Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Empty Wine Bottle",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell after completing the Pied Piper quest.",
+        },
+        {
+          name: "Expired Pasta",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Expired Respirator",
+          recycles: "8x Rubber Parts, 4x Fabric",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Faded Photograph",
+          recycles: "-",
+          sell: "640",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Fertilizer",
+          recycles: "-",
+          sell: "1000",
+          condition:
+            "Safe to sell after completing the Unexpected Initiative quest.",
+        },
+        {
+          name: "Film reel",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell after completing the Movie Night quest.",
+        },
+        {
+          name: "Fine Wristwatch",
+          recycles: "-",
+          sell: "3000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Fried Motherboard",
+          recycles: "5x Plastic Parts, 2x Electrical Components",
+          sell: "2000",
+          condition:
+            "Safe to recycle after upgrading the Utility Station to level 3.",
+        },
+        {
+          name: "Frying Pan",
+          recycles: "8x Metal Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Garlic Press",
+          recycles: "12x Metal Parts",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Headphones",
+          recycles: "7x Rubber Parts, 1x Speaker Components",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Hornet Driver",
+          recycles: "2x ARC Alloy, 2x Electrical Components",
+          sell: "2000",
+          condition:
+            "Safe to recycle after: Completing the Trifecta quest. Completing the Wasps and Hornets quest. Upgrading the Gear Bench to level 2.",
+        },
+        {
+          name: "Household Cleaner",
+          recycles: "11x Chemicals",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Humidifier",
+          recycles: "2x Canister, 2x Wires",
+          sell: "1000",
+          condition: "Safe to recycle after using them for the Project.",
+        },
+        {
+          name: "Ice Cream Scooper",
+          recycles: "7x Metal Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Impure ARC Coolant",
+          recycles: "12x Chemicals",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Industrial Battery",
+          recycles: "7x Chemicals, 2x Battery",
+          sell: "1000",
+          condition:
+            "Safe to recycle after upgrading the Gear Bench to level 3.",
+        },
+        {
+          name: "Industrial Charger",
+          recycles: "5x Metal Parts, 1x Voltage Converter",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Industrial Magnet",
+          recycles: "4x Metal Parts, 2x Magnet",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Laboratory Reagents",
+          recycles: "16x Chemicals, 3x Crude Explosives",
+          sell: "2000",
+          condition:
+            "Safe to recycle after upgrading the Explosives Station to level 3.",
+        },
+        {
+          name: "Lance's Mixtape (5th Edition)",
+          recycles: "-",
+          sell: "10000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Leaper Pulse Unit",
+          recycles: "3x Arc Alloy, 2x Advanced Mechanical Components",
+          sell: "5000",
+          condition:
+            "Sell or recycle after: Completing the Into the Fray quest. Upgrading the Utility Station to level 3. Using them for the Project.",
+        },
+        {
+          name: "Lemon",
+          recycles: "3x Assorted Seeds",
+          sell: "640",
+          condition: "Safe to recycle after upgrading Scrappy to level 3.",
+        },
+        {
+          name: "Light Bulb",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell after using them for the Project.",
+        },
+        {
+          name: "Metal Brackets",
+          recycles: "8x Metal Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Motor",
+          recycles: "2x Oil, 2x Mechanical Components",
+          sell: "2000",
+          condition: "Safe to recycle after upgrading the Refiner to level 3.",
+        },
+        {
+          name: "Mushroom",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell after upgrading Scrappy to level 5.",
+        },
+        {
+          name: "Music Box",
+          recycles: "-",
+          sell: "5000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Music Album",
+          recycles: "-",
+          sell: "3000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Number Plate",
+          recycles: "3x Metal Parts",
+          sell: "270",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Olives",
+          recycles: "2x Assorted Seeds",
+          sell: "640",
+          condition: "Safe to sell after upgrading Scrappy to level 4.",
+        },
+        {
+          name: "Painted Box",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Playing Cards",
+          recycles: "-",
+          sell: "5000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Pottery",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Polluted Air Filter",
+          recycles: "6x Fabric, 2x Oil",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Pop Trigger",
+          recycles: "1x Crude Explosives, 1x ARC Alloy",
+          sell: "640",
+          condition:
+            "Safe to recycle after upgrading the Explosives Station to level 2.",
+        },
+        {
+          name: "Portable TV",
+          recycles: "6x Wires, 2x Battery",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Poster of Natural Wonders",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Power Bank",
+          recycles: "2x Battery, 2x Wires",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Power Cable",
+          recycles: "4x Wires",
+          sell: "1000",
+          condition:
+            "Safe to recycle after upgrading the Gear Bench to level 2.",
+        },
+        {
+          name: "Projector",
+          recycles: "2x Wires, 1x Processor",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Radio",
+          recycles: "1x Speaker Component, 1x Sensors",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Resin",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Red Coral Jewelry",
+          recycles: "-",
+          sell: "5000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Remote Control",
+          recycles: "7x Plastic Parts, 1x Sensors",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Ripped Safety Vest",
+          recycles: "1x Durable Cloth, 1x Magnet",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Rocketeer Driver",
+          recycles: "3x ARC Alloy, 2x Advanced Electrical Components",
+          sell: "5000",
+          condition:
+            "Safe to recycle after: Completing the Out of the Shadows quest. Upgrading the Explosives Station to level 3.",
+        },
+        {
+          name: "Roots",
+          recycles: "-",
+          sell: "640",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Rosary",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Rubber Duck",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell after completing Lance's Tea Party quest.",
+        },
+        {
+          name: "Rubber Pad",
+          recycles: "18x Rubber Parts",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Ruined Accordion",
+          recycles: "18x Rubber Parts, 3x Steel Spring",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Ruined Baton",
+          recycles: "6x Metal Parts, 3x Rubber Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Ruined Handcuffs",
+          recycles: "8x Metal Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Ruined Parachute",
+          recycles: "10x Fabric",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Ruined Riot Shield",
+          recycles: "10x Plastic Parts, 6x Rubber Parts",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Ruined Tactical Vest",
+          recycles: "5x Fabric, 1x Magnet",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Rusted Bolts",
+          recycles: "8x Metal Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Rusted Gear",
+          recycles: "4x Metal Parts, 2x Mechanical Components",
+          sell: "2000",
+          condition: "Safe to recycle after upgrading the Gunsmith to level 3.",
+        },
+        {
+          name: "Rusted Shut Medical Kit",
+          recycles: "2x Syringe, 1x Antiseptic",
+          sell: "2000",
+          condition:
+            "Safe to recycle after upgrading the Medical Lab to level 3.",
+        },
+        {
+          name: "Rusted Tools",
+          recycles: "8x Metal Parts, 1x Steel Spring",
+          sell: "1000",
+          condition: "Safe to recycle after upgrading the Gunsmith to level 2.",
+        },
+        {
+          name: "Rusty ARC Steel",
+          recycles: "8x Metal Parts",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Sentinel Firing Core",
+          recycles: "2x ARC Alloy, 3x Mechanical Components",
+          sell: "2000",
+          condition: "Safe to recycle after upgrading the Gunsmith to level 3.",
+        },
+        {
+          name: "Silver Teaspoon Set",
+          recycles: "-",
+          sell: "3000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Snitch Scanner",
+          recycles: "4x ARC Alloy",
+          sell: "",
+          condition:
+            "Safe to recycle after: Completing the Trifecta quest. Upgrading the Utility Station to level 2.",
+        },
+        {
+          name: "Spotter Relay",
+          recycles: "2x Electrical Components, 1x ARC Alloy",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Spring Cushion",
+          recycles: "2x Durable Cloth, 2x Steel Springs",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Statuette",
+          recycles: "-",
+          sell: "3000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Surveyor Vault",
+          recycles: "2x Mechanical Components, 2x ARC Alloy",
+          sell: "2000",
+          condition:
+            "Safe to recycle after: Completing the Mixed Signals quest. Upgrading the Medical Lab to level 3.",
+        },
+        {
+          name: "Synthesized Fuel",
+          recycles: "1x Oil, 1x Chemicals",
+          sell: "700",
+          condition:
+            "Safe to recycle after upgrading the Explosives Station to level 2.",
+        },
+        {
+          name: "Syringe",
+          recycles: "3x Plastic Parts, 2x Chemicals",
+          sell: "500",
+          condition:
+            "Safe to recycle after completing the Doctor's Orders quest.",
+        },
+        {
+          name: "Tattered ARC Lining",
+          recycles: "12x Fabric",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Tattered Clothes",
+          recycles: "11x Fabric",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Thermostat",
+          recycles: "7x Rubber Parts, 1x Sensors",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Tick Pod",
+          recycles: "2x Arc Alloy, 2x Chemicals",
+          sell: "640",
+          condition:
+            "Safe to recycle after: Upgrading the Medical Lab to level 2. Completing the Small, But Sinister quest.",
+        },
+        {
+          name: "Toaster",
+          recycles: "5x Plastic Parts, 3x Wires",
+          sell: "640",
+          condition: "Safe to recycle after upgrading the Refiner to level 2.",
+        },
+        {
+          name: "Torn Book",
+          recycles: "-",
+          sell: "1000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Torn Blanket",
+          recycles: "12x Fabric",
+          sell: "640",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Turbo Pump",
+          recycles: "1x Mechanical Components, 3x Oil",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Unusable Weapon",
+          recycles: "4x Metal Parts, 5x Simple Gun Parts",
+          sell: "2000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Vase",
+          recycles: "-",
+          sell: "3000",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Very Comfortable Pillow",
+          recycles: "-",
+          sell: "2000",
+          condition: "Safe to sell after upgrading Scrappy to level 5.",
+        },
+        {
+          name: "Volcanic Rock",
+          recycles: "-",
+          sell: "270",
+          condition: "Safe to sell.",
+        },
+        {
+          name: "Wasp Driver",
+          recycles: "1x ARC Alloy, 1x Electrical Components",
+          sell: "1000",
+          condition:
+            "Safe to recycle after: Upgrading the Gunsmith to level 2. Completing the Trifecta quest. Completing the Wasps and Hornets quest.",
+        },
+        {
+          name: "Water Filter",
+          recycles: "2x Rubber Parts, 3x Canister",
+          sell: "1000",
+          condition: "Safe to recycle.",
+        },
+        {
+          name: "Water Pump",
+          recycles: "4x Metal Parts, 2x Oil",
+          sell: "1000",
+          condition:
+            "Safe to recycle after completing the Unexpected Initiative quest.",
+        },
+      ];
+
+      const searchInput = document.getElementById("searchInput");
+      const tableBody = document.getElementById("tableBody");
+      const noResults = document.getElementById("noResults");
+      const visibleCount = document.getElementById("visibleCount");
+      const totalCount = document.getElementById("totalCount");
+
+      // Inicjalizacja tabeli
+      function initTable() {
+        items.forEach((item) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+                    <td class="item-name">${item.name}</td>
+                    <td class="recycles">${
+                      item.recycles === "-" ? "-" : item.recycles
+                    }</td>
+                    <td class="sell-price">${
+                      item.sell ? "$" + item.sell : "-"
+                    }</td>
+                    <td class="condition">${item.condition}</td>
+                `;
+          row.dataset.searchText =
+            `${item.name} ${item.recycles} ${item.sell} ${item.condition}`.toLowerCase();
+          tableBody.appendChild(row);
+        });
+        updateStats();
+      }
+
+      // Filtrowanie w czasie rzeczywistym
+      searchInput.addEventListener("input", function () {
+        const searchTerm = this.value.toLowerCase().trim();
+        const rows = tableBody.getElementsByTagName("tr");
+        let visibleRows = 0;
+
+        for (let row of rows) {
+          const searchText = row.dataset.searchText;
+          if (searchText.includes(searchTerm)) {
+            row.classList.remove("hidden");
+            visibleRows++;
+          } else {
+            row.classList.add("hidden");
+          }
+        }
+
+        // Pokaż komunikat jeśli brak wyników
+        if (visibleRows === 0) {
+          noResults.classList.add("show");
+        } else {
+          noResults.classList.remove("show");
+        }
+
+        updateStats();
+      });
+
+      // Aktualizacja licznika
+      function updateStats() {
+        const rows = tableBody.getElementsByTagName("tr");
+        let visible = 0;
+        for (let row of rows) {
+          if (!row.classList.contains("hidden")) {
+            visible++;
+          }
+        }
+        visibleCount.textContent = visible;
+        totalCount.textContent = items.length;
+      }
+
+      // Uruchom inicjalizację
+      initTable();
+    </script>
+  </body>
+</html>
